@@ -1,36 +1,77 @@
 import { useState, useEffect } from "react";
 import "./style.css";
-//fix the receiving of json
-const ip = "127.0.0.1";
-const port = "0000";
-const url = ip + ":" + port;
 
-async function GetData(systemdata, setSystemData) {
+const systemid = "" //fill this part with your system name
+
+async function getip(setip) {
   try {
-    const response = await fetch(url);
+    const response = fetch("http://" + systemid + ".local:6767/id");
+    const datajson = (await response).json();
+    if (datajson.id == systemid) {
+      setip("http://" + systemid + ".local:6767")
+    } else {
+      setip('')
+    }
+  } catch (err) {
+  }
+}
+
+async function GetData(setcstate, setmetrics, setvalues, ip) {
+  if (ip == '') {
+    const temparr = ["error"];
+    const tempval = ["system ip hasn't been finded"];
+    setmetrics(temparr);
+    setvalues(tempval);
+    return 0;
+  }
+  try {
+    const response = await fetch(ip);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
     const data = await response.json();
-    setSystemData(data);
-    const cstateResponse = await fetch(url + "/cstate");
+    const cstateResponse = await fetch(ip + "/cstate");
     if (!cstateResponse.ok) {
       throw new Error(`HTTP ${cstateResponse.status}`);
     }
-    const cstate = await cstateResponse.json();
+    const output = await cstateResponse.json();
+    if (output.state == 1) {
+      setcstate("connected");
+    } else {
+      setcstate("unconnected");
+    }
+    let i = 0;
+    const tempkey = [];
+    const tempvalue = [];
+    for (const [key, value] of Object.entries(data)) {
+      tempkey.push(key);
+      tempvalue.push(value);
+      i++;
+    }
+    tempkey.push("state")
+    tempvalue.push(setcstate)
+    setmetrics(tempkey);
+    setvalues(tempvalue);
   } catch (err) {
-    setSystemData(
-      "couldnt successfully fetch sysdata. Please retry later or restart the system",
-    );
+    const temparr = ["error"];
+    const tempval = ["couldn't fetch properly data"];
+    setmetrics(temparr);
+    setvalues(tempval);
   }
 }
 
 function App() {
-  const [systemdata, setSystemData] = useState("fetching data");
+  const [cstate, setcstate] = useState("system not found")
+  const [metrics, setmetrics] = useState(["state"])
+  const [values, setvalues] = useState(["fetching data"])
+  const [ip, setip] = useState('')
+
   useEffect(() => {
-    GetData(systemdata, setSystemData);
+    getip(setip);
+    GetData(setcstate, setmetrics, setvalues, ip);
     const interval = setInterval(() => {
-      GetData(systemdata, setSystemData);
+      getip(setip);
+      GetData(setcstate, setmetrics, setvalues, ip);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -43,7 +84,13 @@ function App() {
             <h1>Robot monitoring app</h1>
           </div>
           <div className="body">
-            <p>{systemdata}</p>
+            <ul>
+              {metrics.map((metric, i) => (
+                <li key={i}>
+                  {metric} : {values[i]}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

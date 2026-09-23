@@ -3,6 +3,8 @@ import socket
 from machine import Pin
 import json
 
+systemid = "" # fill this var with your system name
+
 #add gpio usage later
 def getalldata():
     pass
@@ -16,6 +18,8 @@ def handlereq(request):
         return dataloc
     elif path == "/cstate":
         return {"state":1}
+    elif path == "/id":
+        return {"id":systemid}
     else:
         return {"error": "endpoint didn't founded"}
     
